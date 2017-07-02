@@ -2,7 +2,7 @@ language: go
 
 go:
   - tip
-  - 1.9
+  - 1.8
 
 install:
   - go get -t ./...
