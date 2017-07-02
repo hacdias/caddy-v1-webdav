@@ -15,7 +15,7 @@ webdav [baseurl] [scope]
 + **baseurl** is the place where you can access the WebDAV interface. Defaults to `/`.
 + **scope** is an absolute or relative (to the current working directory of Caddy) path that indicates the scope of the WebDAV. Defaults to `.`.
 
-It is highly recommended to use this directive alongside with `[basicauth](https://caddyserver.com/docs/basicauth)` to protect the WebDAV interface.
+It is highly recommended to use this directive alongside with [`basicauth`](https://caddyserver.com/docs/basicauth) to protect the WebDAV interface.
 
 
 ## Examples
