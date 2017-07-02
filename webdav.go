@@ -1,7 +1,9 @@
 package webdav
 
 import (
+	"context"
 	"net/http"
+	"strings"
 
 	"golang.org/x/net/webdav"
 
@@ -36,6 +38,28 @@ func (d WebDav) ServeHTTP(w http.ResponseWriter, r *http.Request) (int, error) {
 		// Checks if the current request is for the current configuration.
 		if !httpserver.Path(r.URL.Path).Matches(d.Configs[i].BaseURL) {
 			continue
+		}
+
+		c := d.Configs[i]
+
+		r.URL.Path = strings.TrimPrefix(r.URL.Path, c.BaseURL)
+
+		if r.Method == "HEAD" {
+			w = newResponseWriterNoBody(w)
+		}
+
+		// Excerpt from RFC4918, section 9.4:
+		//
+		// 		GET, when applied to a collection, may return the contents of an
+		//		"index.html" resource, a human-readable view of the contents of
+		//		the collection, or something else altogether.
+		//
+		// Get, when applied to collection, will return the same as PROPFIND method.
+		if r.Method == "GET" {
+			info, err := c.FileSystem.Stat(context.TODO(), r.URL.Path)
+			if err == nil && info.IsDir() {
+				r.Method = "PROPFIND"
+			}
 		}
 
 		// Runs the WebDAV.
@@ -83,9 +107,16 @@ func parse(c *caddy.Controller) ([]*Config, error) {
 			return nil, c.ArgErr()
 		}
 
+		conf.BaseURL = strings.TrimSuffix(conf.BaseURL, "/")
+		conf.BaseURL = strings.TrimPrefix(conf.BaseURL, "/")
+		conf.BaseURL = "/" + conf.BaseURL
+
+		if conf.BaseURL == "/" {
+			conf.BaseURL = ""
+		}
+
 		conf.FileSystem = webdav.Dir(conf.Scope)
 		conf.Handler = &webdav.Handler{
-			Prefix:     conf.BaseURL,
 			FileSystem: conf.FileSystem,
 			LockSystem: webdav.NewMemLS(),
 		}
