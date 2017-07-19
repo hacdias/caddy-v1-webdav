@@ -9,14 +9,31 @@ Caddy plugin that implements WebDAV. You can download this plugin with Caddy on 
 ## Syntax
 
 ```
-webdav [baseurl] [scope]
+webdav [url] {
+    scope       path
+    allow       path
+    allow_r     regex
+    block       path
+    block_r     regex
+}
 ```
 
-+ **baseurl** is the place where you can access the WebDAV interface. Defaults to `/`.
++ **url** is the place where you can access the WebDAV interface. Defaults to `/`.
 + **scope** is an absolute or relative (to the current working directory of Caddy) path that indicates the scope of the WebDAV. Defaults to `.`.
++ **allow** and **block** are used to allow or deny access to specific files or directories using their relative path to the scope.
++ **allow_r** and **block_r** and variations of the previous options but you are able to use regular expressions with them.
 
 It is highly recommended to use this directive alongside with [`basicauth`](https://caddyserver.com/docs/basicauth) to protect the WebDAV interface.
 
+```
+webdav {
+    # You set the global configurations here and
+    # all the users will inherit them.
+    user1:
+    # Here you can set specific settings for the 'user1'.
+    # They will override the global ones for this specific user.
+}
+```
 
 ## Examples
 

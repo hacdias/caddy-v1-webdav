@@ -2,7 +2,9 @@ package webdav
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"golang.org/x/net/webdav"
@@ -20,10 +22,46 @@ func init() {
 
 // Config is the configuration of a WebDAV instance.
 type Config struct {
-	BaseURL    string
-	Scope      string
-	FileSystem webdav.FileSystem
-	Handler    *webdav.Handler
+	*User
+	BaseURL string
+	Users   map[string]*User
+}
+
+// Rule is a dissalow/allow rule.
+type Rule struct {
+	Regex  bool
+	Allow  bool
+	Path   string
+	Regexp *regexp.Regexp
+}
+
+// User contains the settings of each user.
+type User struct {
+	Scope   string
+	Rules   []*Rule
+	Handler *webdav.Handler
+}
+
+// Allowed checks if the user has permission to access a directory/file
+func (u User) Allowed(url string) bool {
+	var rule *Rule
+	i := len(u.Rules) - 1
+
+	for i >= 0 {
+		rule = u.Rules[i]
+
+		if rule.Regex {
+			if rule.Regexp.MatchString(url) {
+				return rule.Allow
+			}
+		} else if strings.HasPrefix(url, rule.Path) {
+			return rule.Allow
+		}
+
+		i--
+	}
+
+	return true
 }
 
 // WebDav is the middleware that contains the configuration for each instance.
@@ -34,15 +72,37 @@ type WebDav struct {
 
 // ServeHTTP determines if the request is for this plugin, and if all prerequisites are met.
 func (d WebDav) ServeHTTP(w http.ResponseWriter, r *http.Request) (int, error) {
+	var (
+		c *Config
+		u *User
+	)
+
 	for i := range d.Configs {
 		// Checks if the current request is for the current configuration.
 		if !httpserver.Path(r.URL.Path).Matches(d.Configs[i].BaseURL) {
 			continue
 		}
 
-		c := d.Configs[i]
+		c = d.Configs[i]
+		u = c.User
 
+		// Gets the correct user for this request.
+		username, ok := r.Context().Value(httpserver.RemoteUserCtxKey).(string)
+		if ok {
+			if user, ok := c.Users[username]; ok {
+				u = user
+			}
+		}
+
+		fmt.Println(u)
+
+		// Remove the BaseURL from the url path.
 		r.URL.Path = strings.TrimPrefix(r.URL.Path, c.BaseURL)
+
+		// Checks for user permissions relatively to this PATH.
+		if !u.Allowed(r.URL.Path) {
+			return http.StatusForbidden, nil
+		}
 
 		if r.Method == "HEAD" {
 			w = newResponseWriterNoBody(w)
@@ -56,14 +116,14 @@ func (d WebDav) ServeHTTP(w http.ResponseWriter, r *http.Request) (int, error) {
 		//
 		// Get, when applied to collection, will return the same as PROPFIND method.
 		if r.Method == "GET" {
-			info, err := c.FileSystem.Stat(context.TODO(), r.URL.Path)
+			info, err := u.Handler.FileSystem.Stat(context.TODO(), r.URL.Path)
 			if err == nil && info.IsDir() {
 				r.Method = "PROPFIND"
 			}
 		}
 
 		// Runs the WebDAV.
-		d.Configs[i].Handler.ServeHTTP(w, r)
+		u.Handler.ServeHTTP(w, r)
 		return 0, nil
 	}
 
@@ -90,7 +150,11 @@ func parse(c *caddy.Controller) ([]*Config, error) {
 	for c.Next() {
 		conf := &Config{
 			BaseURL: "/",
-			Scope:   ".",
+			Users:   map[string]*User{},
+			User: &User{
+				Scope: ".",
+				Rules: []*Rule{},
+			},
 		}
 
 		args := c.RemainingArgs()
@@ -100,10 +164,6 @@ func parse(c *caddy.Controller) ([]*Config, error) {
 		}
 
 		if len(args) > 1 {
-			conf.Scope = args[1]
-		}
-
-		if len(args) > 2 {
 			return nil, c.ArgErr()
 		}
 
@@ -115,13 +175,73 @@ func parse(c *caddy.Controller) ([]*Config, error) {
 			conf.BaseURL = ""
 		}
 
-		conf.FileSystem = webdav.Dir(conf.Scope)
-		conf.Handler = &webdav.Handler{
-			FileSystem: conf.FileSystem,
+		u := conf.User
+
+		for c.NextBlock() {
+			switch c.Val() {
+			case "scope":
+				if !c.NextArg() {
+					return nil, c.ArgErr()
+				}
+
+				u.Scope = c.Val()
+			case "allow", "allow_r", "block", "block_r":
+				ruleType := c.Val()
+
+				if !c.NextArg() {
+					return configs, c.ArgErr()
+				}
+
+				if c.Val() == "dotfiles" && !strings.HasSuffix(ruleType, "_r") {
+					ruleType += "_r"
+				}
+
+				rule := &Rule{
+					Allow: ruleType == "allow" || ruleType == "allow_r",
+					Regex: ruleType == "allow_r" || ruleType == "block_r",
+				}
+
+				if rule.Regex {
+					rule.Regexp = regexp.MustCompile(c.Val())
+				} else {
+					rule.Path = c.Val()
+				}
+
+				u.Rules = append(u.Rules, rule)
+			default:
+				if c.NextArg() {
+					return nil, c.ArgErr()
+				}
+
+				val := c.Val()
+				if !strings.HasSuffix(val, ":") {
+					return nil, c.ArgErr()
+				}
+
+				val = strings.TrimSuffix(val, ":")
+
+				u.Handler = &webdav.Handler{
+					FileSystem: webdav.Dir(u.Scope),
+					LockSystem: webdav.NewMemLS(),
+				}
+
+				conf.Users[val] = &User{
+					Rules:   conf.Rules,
+					Scope:   conf.Scope,
+					Handler: conf.Handler,
+				}
+
+				u = conf.Users[val]
+			}
+		}
+
+		u.Handler = &webdav.Handler{
+			FileSystem: webdav.Dir(u.Scope),
 			LockSystem: webdav.NewMemLS(),
 		}
 
 		configs = append(configs, conf)
+		fmt.Println(conf)
 	}
 
 	return configs, nil
