@@ -2,7 +2,6 @@ package webdav
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
@@ -93,8 +92,6 @@ func (d WebDav) ServeHTTP(w http.ResponseWriter, r *http.Request) (int, error) {
 				u = user
 			}
 		}
-
-		fmt.Println(u)
 
 		// Remove the BaseURL from the url path.
 		r.URL.Path = strings.TrimPrefix(r.URL.Path, c.BaseURL)
@@ -241,7 +238,6 @@ func parse(c *caddy.Controller) ([]*Config, error) {
 		}
 
 		configs = append(configs, conf)
-		fmt.Println(conf)
 	}
 
 	return configs, nil
