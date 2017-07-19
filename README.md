@@ -18,6 +18,8 @@ webdav [url] {
 }
 ```
 
+All the options are optional.
+
 + **url** is the place where you can access the WebDAV interface. Defaults to `/`.
 + **scope** is an absolute or relative (to the current working directory of Caddy) path that indicates the scope of the WebDAV. Defaults to `.`.
 + **allow** and **block** are used to allow or deny access to specific files or directories using their relative path to the scope.
@@ -37,26 +39,38 @@ webdav {
 
 ## Examples
 
-WebDAV interface on `/` for the entire file system:
-
-```
-webdav / /
-```
-
-WebDAV interface on `/` for the current working directory:
+WebDAV on `/` for the current working directory:
 
 ```
 webdav
 ```
 
-WebDAV interface on `/webdav` for `/var/www`:
+WebDAV on `/admin` for the whole file system:
 
 ```
-webdav /webdav /var/www
+webdav {
+    scope /
+}
 ```
 
-WebDav interface on `/webdav` for the current working directory:
+WebDAV on `/` for the whole file system, without access to `/etc` and `/dev` directories:
 
 ```
-webdav /webdav
+webdav {
+    scope /
+    block /etc
+    block /dev
+}
+```
+
+WebDAV on `/` for the whole file system. The user `sam` can't access `/var/www` but the others can.
+
+```
+basicauth / sam pass
+webdav {
+    scope /
+    
+    sam:
+    block /var/www
+}
 ```
