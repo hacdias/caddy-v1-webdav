@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"golang.org/x/net/webdav"
@@ -37,6 +38,7 @@ type Rule struct {
 // User contains the settings of each user.
 type User struct {
 	Scope   string
+	Modify  bool
 	Rules   []*Rule
 	Handler *webdav.Handler
 }
@@ -105,6 +107,14 @@ func (d WebDav) ServeHTTP(w http.ResponseWriter, r *http.Request) (int, error) {
 			w = newResponseWriterNoBody(w)
 		}
 
+		// If this request modified the files and the user doesn't have permission
+		// to do so, return forbidden.
+		if (r.Method == "PUT" || r.Method == "POST" || r.Method == "MKCOL" ||
+			r.Method == "DELETE" || r.Method == "COPY" || r.Method == "MOVE") &&
+			!u.Modify {
+			return http.StatusForbidden, nil
+		}
+
 		// Excerpt from RFC4918, section 9.4:
 		//
 		// 		GET, when applied to a collection, may return the contents of an
@@ -149,8 +159,9 @@ func parse(c *caddy.Controller) ([]*Config, error) {
 			BaseURL: "/",
 			Users:   map[string]*User{},
 			User: &User{
-				Scope: ".",
-				Rules: []*Rule{},
+				Scope:  ".",
+				Rules:  []*Rule{},
+				Modify: true,
 			},
 		}
 
@@ -199,12 +210,28 @@ func parse(c *caddy.Controller) ([]*Config, error) {
 				}
 
 				if rule.Regex {
-					rule.Regexp = regexp.MustCompile(c.Val())
+					if c.Val() == "dotfiles" {
+						rule.Regexp = regexp.MustCompile("\\/\\..+")
+					} else {
+						rule.Regexp = regexp.MustCompile(c.Val())
+					}
 				} else {
 					rule.Path = c.Val()
 				}
 
 				u.Rules = append(u.Rules, rule)
+			case "modify":
+				if !c.NextArg() {
+					u.Modify = true
+					continue
+				}
+
+				val, err := strconv.ParseBool(c.Val())
+				if err != nil {
+					return nil, err
+				}
+
+				u.Modify = val
 			default:
 				if c.NextArg() {
 					return nil, c.ArgErr()
@@ -225,6 +252,7 @@ func parse(c *caddy.Controller) ([]*Config, error) {
 				conf.Users[val] = &User{
 					Rules:   conf.Rules,
 					Scope:   conf.Scope,
+					Modify:  conf.Modify,
 					Handler: conf.Handler,
 				}
 

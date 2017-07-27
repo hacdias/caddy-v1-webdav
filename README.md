@@ -11,6 +11,7 @@ Caddy plugin that implements WebDAV. You can download this plugin with Caddy on 
 ```
 webdav [url] {
     scope       path
+    modify      [true|false]
     allow       path
     allow_r     regex
     block       path
@@ -22,7 +23,8 @@ All the options are optional.
 
 + **url** is the place where you can access the WebDAV interface. Defaults to `/`.
 + **scope** is an absolute or relative (to the current working directory of Caddy) path that indicates the scope of the WebDAV. Defaults to `.`.
-+ **allow** and **block** are used to allow or deny access to specific files or directories using their relative path to the scope.
++ **modify** indicates if the user has permission to edit/modify the files. Defaults to `true`.
++ **allow** and **block** are used to allow or deny access to specific files or directories using their relative path to the scope. You can use the magic word `dotfiles` to allow or deny the access to every file starting by a dot.
 + **allow_r** and **block_r** and variations of the previous options but you are able to use regular expressions with them.
 
 It is highly recommended to use this directive alongside with [`basicauth`](https://caddyserver.com/docs/basicauth) to protect the WebDAV interface.
