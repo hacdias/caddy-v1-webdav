@@ -23,14 +23,19 @@ func init() {
 // WebDav is the middleware that contains the configuration for each instance.
 type WebDav struct {
 	Next    httpserver.Handler
-	Configs []*webdav.Config
+	Configs []*config
+}
+
+type config struct {
+	*webdav.Config
+	baseURL string
 }
 
 // ServeHTTP determines if the request is for this plugin, and if all prerequisites are met.
 func (d WebDav) ServeHTTP(w http.ResponseWriter, r *http.Request) (int, error) {
 	for i := range d.Configs {
 		// Checks if the current request is for the current configuration.
-		if !httpserver.Path(r.URL.Path).Matches(d.Configs[i].BaseURL) {
+		if !httpserver.Path(r.URL.Path).Matches(d.Configs[i].baseURL) {
 			continue
 		}
 
@@ -55,36 +60,38 @@ func setup(c *caddy.Controller) error {
 	return nil
 }
 
-func parse(c *caddy.Controller) ([]*webdav.Config, error) {
-	configs := []*webdav.Config{}
+func parse(c *caddy.Controller) ([]*config, error) {
+	configs := []*config{}
 
 	for c.Next() {
-		conf := &webdav.Config{
-			BaseURL: "/",
-			Users:   map[string]*webdav.User{},
-			User: &webdav.User{
-				Scope:  ".",
-				Rules:  []*webdav.Rule{},
-				Modify: true,
+		conf := &config{
+			baseURL: "/",
+			Config: &webdav.Config{
+				Users: map[string]*webdav.User{},
+				User: &webdav.User{
+					Scope:  ".",
+					Rules:  []*webdav.Rule{},
+					Modify: true,
+				},
 			},
 		}
 
 		args := c.RemainingArgs()
 
 		if len(args) > 0 {
-			conf.BaseURL = args[0]
+			conf.baseURL = args[0]
 		}
 
 		if len(args) > 1 {
 			return nil, c.ArgErr()
 		}
 
-		conf.BaseURL = strings.TrimSuffix(conf.BaseURL, "/")
-		conf.BaseURL = strings.TrimPrefix(conf.BaseURL, "/")
-		conf.BaseURL = "/" + conf.BaseURL
+		conf.baseURL = strings.TrimSuffix(conf.baseURL, "/")
+		conf.baseURL = strings.TrimPrefix(conf.baseURL, "/")
+		conf.baseURL = "/" + conf.baseURL
 
-		if conf.BaseURL == "/" {
-			conf.BaseURL = ""
+		if conf.baseURL == "/" {
+			conf.baseURL = ""
 		}
 
 		u := conf.User
@@ -149,6 +156,7 @@ func parse(c *caddy.Controller) ([]*webdav.Config, error) {
 				val = strings.TrimSuffix(val, ":")
 
 				u.Handler = &wd.Handler{
+					Prefix:     conf.baseURL,
 					FileSystem: wd.Dir(u.Scope),
 					LockSystem: wd.NewMemLS(),
 				}
@@ -165,6 +173,7 @@ func parse(c *caddy.Controller) ([]*webdav.Config, error) {
 		}
 
 		u.Handler = &wd.Handler{
+			Prefix:     conf.baseURL,
 			FileSystem: wd.Dir(u.Scope),
 			LockSystem: wd.NewMemLS(),
 		}
