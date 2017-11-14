@@ -50,7 +50,7 @@ webdav
 WebDAV on `/admin` for the whole file system:
 
 ```
-webdav {
+webdav /admin {
     scope /
 }
 ```
