@@ -8,7 +8,7 @@ import (
 
 	wd "golang.org/x/net/webdav"
 
-	"github.com/hacdias/webdav"
+	"github.com/hacdias/webdav/webdav"
 	"github.com/mholt/caddy"
 	"github.com/mholt/caddy/caddyhttp/httpserver"
 )
@@ -67,6 +67,7 @@ func parse(c *caddy.Controller) ([]*config, error) {
 		conf := &config{
 			baseURL: "/",
 			Config: &webdav.Config{
+				Auth:  false, // Must use basicauth directive for this.
 				Users: map[string]*webdav.User{},
 				User: &webdav.User{
 					Scope:  ".",
