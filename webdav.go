@@ -122,7 +122,7 @@ func parse(c *caddy.Controller) ([]*config, error) {
 
 				if rule.Regex {
 					if c.Val() == "dotfiles" {
-						rule.Regexp = regexp.MustCompile("\\/\\..+")
+						rule.Regexp = regexp.MustCompile(`\/\..+`)
 					} else {
 						rule.Regexp = regexp.MustCompile(c.Val())
 					}
