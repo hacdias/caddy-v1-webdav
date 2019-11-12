@@ -4,6 +4,6 @@ go 1.12
 
 require (
 	github.com/caddyserver/caddy v1.0.3
-	github.com/hacdias/webdav v1.4.1
-	golang.org/x/net v0.0.0-20190509222800-a4d6f7feada5
+	github.com/hacdias/webdav/v3 v3.0.0
+	golang.org/x/net v0.0.0-20191109021931-daa7c04131f5
 )
