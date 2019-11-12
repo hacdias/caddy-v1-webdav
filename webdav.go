@@ -8,7 +8,7 @@ import (
 
 	wd "golang.org/x/net/webdav"
 
-	"github.com/hacdias/webdav/webdav"
+	"github.com/hacdias/webdav/v3/lib"
 	"github.com/caddyserver/caddy"
 	"github.com/caddyserver/caddy/caddyhttp/httpserver"
 )
@@ -27,7 +27,7 @@ type WebDav struct {
 }
 
 type config struct {
-	*webdav.Config
+	*lib.Config
 	baseURL string
 }
 
@@ -66,12 +66,12 @@ func parse(c *caddy.Controller) ([]*config, error) {
 	for c.Next() {
 		conf := &config{
 			baseURL: "/",
-			Config: &webdav.Config{
+			Config: &lib.Config{
 				Auth:  false, // Must use basicauth directive for this.
-				Users: map[string]*webdav.User{},
-				User: &webdav.User{
+				Users: map[string]*lib.User{},
+				User: &lib.User{
 					Scope:  ".",
-					Rules:  []*webdav.Rule{},
+					Rules:  []*lib.Rule{},
 					Modify: true,
 				},
 			},
@@ -116,7 +116,7 @@ func parse(c *caddy.Controller) ([]*config, error) {
 					ruleType += "_r"
 				}
 
-				rule := &webdav.Rule{
+				rule := &lib.Rule{
 					Allow: ruleType == "allow" || ruleType == "allow_r",
 					Regex: ruleType == "allow_r" || ruleType == "block_r",
 				}
@@ -162,7 +162,7 @@ func parse(c *caddy.Controller) ([]*config, error) {
 					LockSystem: wd.NewMemLS(),
 				}
 
-				conf.Users[val] = &webdav.User{
+				conf.Users[val] = &lib.User{
 					Rules:   conf.Rules,
 					Scope:   conf.Scope,
 					Modify:  conf.Modify,
