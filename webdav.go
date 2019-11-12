@@ -8,7 +8,7 @@ import (
 
 	wd "golang.org/x/net/webdav"
 
-	"github.com/hacdias/webdav/webdav"
+	webdav "github.com/hacdias/webdav/v3/lib"
 	"github.com/caddyserver/caddy"
 	"github.com/caddyserver/caddy/caddyhttp/httpserver"
 )
