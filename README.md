@@ -1,5 +1,7 @@
 # webdav
 
+> For a Caddy v2 WebDAV plugin, please check [@mholt's webdav plugin](https://github.com/mholt/caddy-webdav/). 
+
 [![Build](https://img.shields.io/circleci/project/github/hacdias/caddy-webdav/master.svg?style=flat-square)](https://circleci.com/gh/hacdias/caddy-webdav)
 [![community](https://img.shields.io/badge/community-forum-ff69b4.svg?style=flat-square)](https://caddy.community)
 [![Go Report Card](https://goreportcard.com/badge/github.com/hacdias/caddy-webdav?style=flat-square)](https://goreportcard.com/report/hacdias/caddy-webdav)
